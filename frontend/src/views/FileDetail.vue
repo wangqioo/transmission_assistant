@@ -13,9 +13,20 @@
 
       <template v-else>
         <!-- Hero -->
-        <div class="hero gc">
+        <div class="hero gc" :class="{ 'hero-img': file.type === 'image' }">
           <div class="hero-glow"></div>
-          <div class="hero-icon">{{ typeIcon }}</div>
+          <!-- Image preview -->
+          <template v-if="file.type === 'image'">
+            <div class="hero-img-wrap">
+              <img
+                :src="`/api/files/${file.id}/download`"
+                class="hero-img-el"
+                loading="lazy"
+                @error="e => e.target.closest('.hero-img-wrap').innerHTML = '<span style=\'font-size:52px\'>🖼</span>'"
+              />
+            </div>
+          </template>
+          <div v-else class="hero-icon">{{ typeIcon }}</div>
           <div class="hero-name">{{ file.original_filename }}</div>
           <div class="hero-badges">
             <span class="type-chip" :class="file.type">{{ typeLabel }}</span>
@@ -173,6 +184,11 @@ onMounted(load)
   border-radius: var(--radius);
   background: var(--s2); border: 1px solid var(--border2);
 }
+.hero.hero-img { padding: 0 0 16px; overflow: hidden; }
+.hero.hero-img .hero-name,
+.hero.hero-img .hero-badges,
+.hero.hero-img .hero-time { padding: 0 18px; }
+.hero.hero-img .hero-name { margin-top: 12px; }
 .hero-glow {
   position: absolute; top: -40px; right: -40px;
   width: 140px; height: 140px;
@@ -180,6 +196,16 @@ onMounted(load)
   pointer-events: none;
 }
 .hero-icon { font-size: 52px; margin-bottom: 10px; }
+.hero-img-wrap {
+  width: 100%; max-height: 260px;
+  overflow: hidden; border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--s3);
+  display: flex; align-items: center; justify-content: center;
+}
+.hero-img-el {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  max-height: 260px;
+}
 .hero-name {
   font-size: 15px; font-weight: 700; color: var(--text);
   word-break: break-all; margin-bottom: 10px;

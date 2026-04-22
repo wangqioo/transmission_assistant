@@ -75,8 +75,7 @@
                   @click="handleCardClick(f)"
                 >
                   <div class="fm-img-inner" :class="imgBgClass(f)">
-                    <img v-if="f.og_image" :src="f.og_image" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
-                    <span v-else style="font-size:36px">🖼</span>
+                    <img :src="`/api/files/${f.id}/download`" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
                   </div>
                   <div class="fm-img-lbl">
                     <span class="img-lbl-name">{{ f.original_filename }}</span>

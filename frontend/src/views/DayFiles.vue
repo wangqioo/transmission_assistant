@@ -29,8 +29,7 @@
           <!-- Image -->
           <template v-if="f.type === 'image'">
             <div class="dc-img-wrap">
-              <img v-if="f.og_image" :src="f.og_image" class="dc-img" loading="lazy" @error="e => e.target.style.display='none'" />
-              <span v-else class="dc-icon">🖼</span>
+              <img :src="`/api/files/${f.id}/download`" class="dc-img" loading="lazy" @error="e => e.target.style.display='none'" />
             </div>
           </template>
           <!-- Link -->
