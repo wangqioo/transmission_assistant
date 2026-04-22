@@ -83,8 +83,7 @@ created_at, analyzed_at, status(pending/ready/failed), error
 ### 主页展示逻辑（`Home.vue`）
 - 文件按 `created_at` **升序**分组（最旧在上，最新在下）
 - 页面加载后自动 `scrollTo(scrollHeight)`，用户看到的是最新文件
-- 左滑屏幕（drag > 60px）或手指左滑 → `router.push('/category')`
-- 鼠标拖拽也支持：`onMouseDown/Move/Up`
+- 左滑屏幕（drag > 60px）或手指左滑 → `router.push('/category')`（Home.vue 自身处理）
 - 上传成功后同样滚动到底部
 
 ### 分类时间线（`Category.vue`）
@@ -114,7 +113,15 @@ created_at, analyzed_at, status(pending/ready/failed), error
 - B站：官方 API 获取封面/标题/UP主
 - 通用：httpx 抓取 og:title / og:image / favicon
 
-### 手机框缩放（`App.vue`）
+### 全局手势导航（`App.vue`）
+- **右滑返回**：在任意非主页（`route.path !== '/'`）向右拖拽 > 60px → `router.back()`
+  - 触摸和鼠标拖拽均支持，斜向滑动（`|dy| > |dx| - 10`）不触发
+  - 主页右滑无操作（无历史可返回）
+  - 与 Home.vue 卡片左滑删除（负 dx）方向相反，无冲突
+- **方向感知转场**：`transitionName` ref + `router.afterEach` 跟踪路由历史栈
+  - 前进（push）→ `slide-forward`：新页从右入，旧页向左退
+  - 返回（back）→ `slide-back`：旧页从左入，当前页向右退
+- **手机框缩放**：
 ```js
 const s = Math.min(1, (window.innerHeight - 40) / 844, (window.innerWidth - 40) / 390)
 document.documentElement.style.setProperty('--phone-scale', s)
@@ -140,6 +147,8 @@ document.documentElement.style.setProperty('--phone-scale', s)
 - [x] AI 语义搜索（GLM，score≥0.6，宁少勿滥）
 - [x] 主页微信聊天风格，日期分组气泡，最新在底部
 - [x] 左滑屏幕跳转分类页（触摸 + 鼠标拖拽均支持）
+- [x] 右滑屏幕返回上一页（触摸 + 鼠标拖拽，iOS 风格，App.vue 全局处理）
+- [x] 方向感知页面转场（前进从右入/返回从左入）
 - [x] 分类页时间线（年→月→日），点某天跳 DayFiles 页
 - [x] DayFiles 页：某天某类型全部文件 + 底部限定范围 AI 搜索
 - [x] ChatBox 人格化话术（随机多变，打字机效果响应式修复）

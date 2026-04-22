@@ -16,9 +16,16 @@
       </div>
 
       <!-- App content -->
-      <div class="viewport">
+      <div class="viewport"
+        @touchstart.passive="onTouchStart"
+        @touchend.passive="onTouchEnd"
+        @mousedown="onMouseDown"
+        @mousemove="onMouseMove"
+        @mouseup="onMouseUp"
+        @mouseleave="onMouseUp"
+      >
         <router-view v-slot="{ Component }">
-          <transition name="slide-up" mode="out-in">
+          <transition :name="transitionName" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
@@ -32,9 +39,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from './composables/useTheme'
 
 useTheme()
+const router = useRouter()
+const route  = useRoute()
 
 const timeStr = ref('')
 function updateTime() {
@@ -46,6 +56,55 @@ function updateScale() {
   const PW = 390, PH = 844
   const s = Math.min(1, (window.innerHeight - 40) / PH, (window.innerWidth - 40) / PW)
   document.documentElement.style.setProperty('--phone-scale', s)
+}
+
+// ── Transition direction tracking ────────────────────────────
+const transitionName = ref('slide-forward')
+const routeHistory = ['/']
+
+router.afterEach((to, from) => {
+  const idx = routeHistory.lastIndexOf(to.path)
+  if (idx >= 0 && idx < routeHistory.length - 1) {
+    transitionName.value = 'slide-back'
+    routeHistory.splice(idx + 1)
+  } else {
+    transitionName.value = 'slide-forward'
+    if (routeHistory[routeHistory.length - 1] !== to.path) routeHistory.push(to.path)
+  }
+})
+
+// ── Global right-swipe to go back ────────────────────────────
+let txStart = 0, tyStart = 0
+function onTouchStart(e) {
+  txStart = e.touches[0].clientX
+  tyStart = e.touches[0].clientY
+}
+function onTouchEnd(e) {
+  const dx = e.changedTouches[0].clientX - txStart
+  const dy = e.changedTouches[0].clientY - tyStart
+  if (Math.abs(dx) <= Math.abs(dy) + 10) return
+  if (dx > 60 && route.path !== '/') router.back()
+}
+
+let mouseDown = false, mxStart = 0, myStart = 0, mouseMoved = false
+function onMouseDown(e) {
+  if (e.button !== 0) return
+  mouseDown = true; mouseMoved = false
+  mxStart = e.clientX; myStart = e.clientY
+}
+function onMouseMove(e) {
+  if (!mouseDown) return
+  if (Math.abs(e.clientX - mxStart) > 5) mouseMoved = true
+}
+function onMouseUp(e) {
+  if (!mouseDown) return
+  mouseDown = false
+  if (!mouseMoved) return
+  mouseMoved = false
+  const dx = e.clientX - mxStart
+  const dy = e.clientY - myStart
+  if (Math.abs(dx) <= Math.abs(dy) + 10) return
+  if (dx > 60 && route.path !== '/') router.back()
 }
 
 let timer
@@ -222,12 +281,19 @@ body {
   pointer-events: none;
 }
 
-/* Page transitions */
-.slide-up-enter-active, .slide-up-leave-active {
+/* Page transitions — forward (push) */
+.slide-forward-enter-active, .slide-forward-leave-active {
   transition: transform .36s cubic-bezier(.32,.72,0,1), opacity .28s;
 }
-.slide-up-enter-from { transform: translateY(24px); opacity: 0; }
-.slide-up-leave-to   { transform: translateY(-12px); opacity: 0; }
+.slide-forward-enter-from { transform: translateX(100%); opacity: 0; }
+.slide-forward-leave-to   { transform: translateX(-30%); opacity: 0; }
+
+/* Page transitions — back (swipe right) */
+.slide-back-enter-active, .slide-back-leave-active {
+  transition: transform .36s cubic-bezier(.32,.72,0,1), opacity .28s;
+}
+.slide-back-enter-from { transform: translateX(-100%); opacity: 0; }
+.slide-back-leave-to   { transform: translateX(30%);  opacity: 0; }
 
 /* Glass card shared class */
 .gc {
