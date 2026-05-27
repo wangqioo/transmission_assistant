@@ -46,6 +46,23 @@
           <div class="hero-time">{{ timeStr }}</div>
         </div>
 
+        <!-- Personal comment -->
+        <div class="info-card gc comment-card">
+          <div class="comment-head">
+            <div class="card-label">我的评论</div>
+            <button class="comment-save" @click="saveComment" :disabled="savingComment || commentText === (file.comment || '')">
+              {{ savingComment ? '保存中' : '保存' }}
+            </button>
+          </div>
+          <textarea
+            v-model="commentText"
+            class="comment-box"
+            rows="2"
+            maxlength="2000"
+            placeholder="写评论"
+          ></textarea>
+        </div>
+
         <!-- AI Summary -->
         <div class="info-card gc">
           <div class="card-label">AI 简介</div>
@@ -64,7 +81,7 @@
             <!-- WeChat read full article button -->
             <button v-if="isWechat" class="read-btn" @click="loadArticle" :disabled="extracting">
               <span v-if="extracting" class="read-btn-orb"></span>
-              <span>{{ extracting ? '正在提取正文…' : '📖 查看原文' }}</span>
+              <span>{{ extracting ? '正在提取正文…' : (file.has_content || file.content_md ? '📖 查看原文' : '📖 提取原文') }}</span>
             </button>
           </template>
         </div>
@@ -125,7 +142,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getFile, analyzeFile, deleteFile, extractContent, imgUrl, downloadUrl } from '../api/files'
+import { getFile, analyzeFile, deleteFile, extractContent, imgUrl, downloadUrl, updateComment } from '../api/files'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +153,8 @@ const articleMd = ref('')
 const articleMeta = ref(null)
 const extracting = ref(false)
 const showArticle = ref(false)
+const commentText = ref('')
+const savingComment = ref(false)
 
 const isWechat = computed(() => {
   const url = file.value?.url || ''
@@ -155,10 +174,15 @@ function escapeHtml(text) {
 
 function renderInline(text) {
   return escapeHtml(text)
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />')
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => `<img alt="${alt}" src="${proxyMarkdownImage(src)}" />`)
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
+}
+
+function proxyMarkdownImage(src) {
+  const decoded = src.replace(/&amp;/g, '&')
+  return imgUrl(decoded)
 }
 
 function renderMarkdown(markdown) {
@@ -185,6 +209,17 @@ function renderMarkdown(markdown) {
 
 async function loadArticle() {
   if (articleMd.value) { showArticle.value = true; return }
+  const cachedArticle = file.value?.content_md || (file.value?.type === 'link' ? file.value?.content : '')
+  if (cachedArticle) {
+    articleMeta.value = {
+      title: file.value.original_filename,
+      author: '',
+      pub_time: '',
+    }
+    articleMd.value = cachedArticle
+    showArticle.value = true
+    return
+  }
   extracting.value = true
   try {
     const res = await extractContent(file.value.id)
@@ -214,8 +249,21 @@ const timeStr = computed(() => {
 
 async function load() {
   loading.value = true
-  try { file.value = await getFile(route.params.id) }
+  try {
+    file.value = await getFile(route.params.id)
+    commentText.value = file.value?.comment || ''
+  }
   finally { loading.value = false }
+}
+
+async function saveComment() {
+  savingComment.value = true
+  try {
+    file.value = await updateComment(file.value.id, commentText.value)
+    commentText.value = file.value.comment || ''
+  } finally {
+    savingComment.value = false
+  }
 }
 
 async function triggerAnalyze() {
@@ -328,6 +376,35 @@ onMounted(load)
 .card-label {
   font-size: 10px; font-weight: 600; color: var(--text3);
   letter-spacing: .08em; text-transform: uppercase; margin-bottom: 9px;
+}
+.comment-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 6px;
+}
+.comment-head .card-label { margin-bottom: 0; }
+.comment-card {
+  padding: 12px 14px;
+}
+.comment-save {
+  height: 24px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid rgba(139,114,255,.28);
+  background: var(--accent-s); color: var(--accent);
+  font-size: 11px; font-weight: 700; font-family: inherit;
+}
+.comment-save:disabled {
+  opacity: .38;
+}
+.comment-box {
+  width: 100%; min-height: 44px; resize: vertical;
+  border: 1px solid var(--border2); border-radius: 10px;
+  background: var(--s1); color: var(--text);
+  padding: 7px 10px; outline: none;
+  font: inherit; font-size: 13px; line-height: 1.45;
+}
+.comment-box::placeholder { color: var(--text3); }
+.comment-box:focus {
+  border-color: rgba(139,114,255,.5);
+  box-shadow: 0 0 0 3px rgba(139,114,255,.08);
 }
 
 .state-row {

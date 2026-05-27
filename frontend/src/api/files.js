@@ -71,6 +71,11 @@ export async function analyzeFile(id) {
   return data
 }
 
+export async function updateComment(id, comment) {
+  const { data } = await api.put(`/mobile/files/${id}/comment`, { comment })
+  return data
+}
+
 export async function extractContent(id) {
   const { data } = await api.get(`/mobile/files/${id}/extract`)
   return data
