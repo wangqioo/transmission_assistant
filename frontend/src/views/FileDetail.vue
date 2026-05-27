@@ -19,7 +19,7 @@
           <template v-if="file.type === 'image'">
             <div class="hero-img-wrap">
               <img
-                :src="`/api/files/${file.id}/download`"
+                :src="downloadUrl(file.id)"
                 class="hero-img-el"
                 loading="lazy"
                 @error="e => e.target.closest('.hero-img-wrap').innerHTML = '<span style=\'font-size:52px\'>🖼</span>'"
@@ -105,7 +105,7 @@
         <!-- Actions -->
         <div class="actions">
           <a v-if="file.type !== 'link'"
-            :href="`/api/files/${file.id}/download`"
+            :href="downloadUrl(file.id)"
             class="btn-primary" download>
             ⬇ 下载文件
           </a>
@@ -125,8 +125,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { marked } from 'marked'
-import { getFile, analyzeFile, deleteFile, extractContent, imgUrl } from '../api/files'
+import { getFile, analyzeFile, deleteFile, extractContent, imgUrl, downloadUrl } from '../api/files'
 
 const route = useRoute()
 const router = useRouter()
@@ -138,14 +137,51 @@ const articleMeta = ref(null)
 const extracting = ref(false)
 const showArticle = ref(false)
 
-marked.setOptions({ breaks: true, gfm: true })
-
 const isWechat = computed(() => {
   const url = file.value?.url || ''
   return file.value?.type === 'link' && (url.includes('mp.weixin.qq.com') || url.includes('weixin.qq.com'))
 })
 
-const renderedMd = computed(() => articleMd.value ? marked.parse(articleMd.value) : '')
+const renderedMd = computed(() => articleMd.value ? renderMarkdown(articleMd.value) : '')
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function renderInline(text) {
+  return escapeHtml(text)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+}
+
+function renderMarkdown(markdown) {
+  const lines = String(markdown).split(/\r?\n/)
+  const html = []
+  let paragraph = []
+  const flush = () => {
+    if (!paragraph.length) return
+    html.push(`<p>${renderInline(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+  for (const line of lines) {
+    if (!line.trim()) { flush(); continue }
+    if (line.startsWith('### ')) { flush(); html.push(`<h3>${renderInline(line.slice(4))}</h3>`); continue }
+    if (line.startsWith('## ')) { flush(); html.push(`<h2>${renderInline(line.slice(3))}</h2>`); continue }
+    if (line.startsWith('# ')) { flush(); html.push(`<h1>${renderInline(line.slice(2))}</h1>`); continue }
+    if (line.startsWith('- ')) { flush(); html.push(`<ul><li>${renderInline(line.slice(2))}</li></ul>`); continue }
+    if (line.startsWith('> ')) { flush(); html.push(`<blockquote>${renderInline(line.slice(2))}</blockquote>`); continue }
+    paragraph.push(line)
+  }
+  flush()
+  return html.join('')
+}
 
 async function loadArticle() {
   if (articleMd.value) { showArticle.value = true; return }

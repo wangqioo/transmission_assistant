@@ -75,7 +75,7 @@
                   @click="handleCardClick(f)"
                 >
                   <div class="fm-img-inner" :class="imgBgClass(f)">
-                    <img :src="`/api/files/${f.id}/download`" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
+                    <img :src="downloadUrl(f.id)" class="img-thumb" loading="lazy" @error="e => e.target.style.display='none'" />
                   </div>
                   <div class="fm-img-lbl">
                     <span class="img-lbl-name">{{ f.original_filename }}</span>
@@ -119,7 +119,7 @@
                   :style="{ transform: `translateX(${swipe[f.id] || 0}px)` }"
                   @click="$router.push(`/file/${f.id}`)"
                 >
-                  {{ f.summary }}
+                  {{ f.content || f.summary || f.original_filename }}
                 </div>
               </template>
 
@@ -258,7 +258,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { getFiles, uploadFile, uploadLink, uploadText, deleteFile, getStats, imgUrl } from '../api/files'
+import { getFiles, uploadFile, uploadLink, uploadText, deleteFile, getStats, imgUrl, downloadUrl } from '../api/files'
 import { useTheme } from '../composables/useTheme'
 
 const { theme, toggle: toggleTheme } = useTheme()
@@ -329,7 +329,7 @@ const dateGroups = computed(() => {
   return Object.keys(map).sort((a, b) => a.localeCompare(b)).map(date => ({
     date,
     label: date === today ? '今天' : date === yesterday ? '昨天' : date,
-    files: map[date].sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    files: map[date].sort((a, b) => Number(a.id) - Number(b.id)),
   }))
 })
 
@@ -393,6 +393,7 @@ let recognition = null
 // ── SSE ───────────────────────────────────────────────────────
 let evtSource = null
 function startSSE() {
+  return
   if (evtSource) return
   evtSource = new EventSource('/api/files/events')
   evtSource.onmessage = (e) => {
@@ -499,7 +500,6 @@ async function doUpload(file, url) {
     else await uploadLink(url, analyzeNow.value)
     await loadFiles()
     uploadToast.value = '✓ 发送成功'
-    // Scroll to bottom after upload
     setTimeout(() => { feedEl.value?.scrollTo({ top: feedEl.value.scrollHeight, behavior: 'smooth' }) }, 100)
   } catch (e) {
     uploadToast.value = `✗ ${e.response?.data?.detail || e.message}`

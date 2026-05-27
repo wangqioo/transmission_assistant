@@ -65,10 +65,10 @@ const routeHistory = ['/']
 router.afterEach((to, from) => {
   const idx = routeHistory.lastIndexOf(to.path)
   if (idx >= 0 && idx < routeHistory.length - 1) {
-    transitionName.value = 'slide-back'
+    transitionName.value = 'zoom-page'
     routeHistory.splice(idx + 1)
   } else {
-    transitionName.value = 'slide-forward'
+    transitionName.value = 'zoom-page'
     if (routeHistory[routeHistory.length - 1] !== to.path) routeHistory.push(to.path)
   }
 })
@@ -281,19 +281,19 @@ body {
   pointer-events: none;
 }
 
-/* Page transitions — forward (push) */
-.slide-forward-enter-active, .slide-forward-leave-active {
-  transition: transform .36s cubic-bezier(.32,.72,0,1), opacity .28s;
+/* Page transitions — center zoom */
+.zoom-page-enter-active, .zoom-page-leave-active {
+  transition: transform .28s cubic-bezier(.2,.82,.2,1), opacity .22s ease;
+  transform-origin: center center;
 }
-.slide-forward-enter-from { transform: translateX(100%); opacity: 0; }
-.slide-forward-leave-to   { transform: translateX(-30%); opacity: 0; }
-
-/* Page transitions — back (swipe right) */
-.slide-back-enter-active, .slide-back-leave-active {
-  transition: transform .36s cubic-bezier(.32,.72,0,1), opacity .28s;
+.zoom-page-enter-from {
+  transform: scale(.88);
+  opacity: 0;
 }
-.slide-back-enter-from { transform: translateX(-100%); opacity: 0; }
-.slide-back-leave-to   { transform: translateX(30%);  opacity: 0; }
+.zoom-page-leave-to {
+  transform: scale(1.04);
+  opacity: 0;
+}
 
 /* Glass card shared class */
 .gc {

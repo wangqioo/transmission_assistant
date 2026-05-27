@@ -29,7 +29,7 @@
           <!-- Image -->
           <template v-if="f.type === 'image'">
             <div class="dc-img-wrap">
-              <img :src="`/api/files/${f.id}/download`" class="dc-img" loading="lazy" @error="e => e.target.style.display='none'" />
+              <img :src="downloadUrl(f.id)" class="dc-img" loading="lazy" @error="e => e.target.style.display='none'" />
             </div>
           </template>
           <!-- Link -->
@@ -89,7 +89,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getFiles, imgUrl } from '../api/files'
+import { getFiles, imgUrl, downloadUrl } from '../api/files'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,7 +129,7 @@ const dayFiles = computed(() =>
     const fDate = f.created_at?.slice(0, 10)
     const typeMatch = !fileType.value || f.type === fileType.value
     return fDate === date.value && typeMatch
-  }).sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }).sort((a, b) => Number(a.id) - Number(b.id))
 )
 
 function fmtSize(b) {
